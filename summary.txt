@@ -1,0 +1,31 @@
+quantization-runtime — Project Summary
+======================================
+
+Status: MVP Complete
+Hardware: NVIDIA RTX 2070 8GB
+Base Model: Qwen2-0.5B-Instruct
+
+OBJECTIVE
+---------
+Implement and compare AWQ and GPTQ algorithms for 4-bit weight quantization 
+from scratch, focusing on mathematical correctness and intelligence preservation.
+
+CORE ACHIEVEMENTS
+-----------------
+1. Built a Calibration Pipeline using Salesforce/wikitext-2.
+2. Implemented Activation-Aware Scaling (AWQ) to protect salient weights.
+3. Implemented Hessian-based Error Propagation (GPTQ) with Cholesky decomposition.
+4. Validated that 4-bit quantized models maintain coherence in text generation.
+
+ALGORITHM COMPARISON
+--------------------
+- AWQ: Simpler implementation, fast execution, excellent for preserving 
+  general chat capabilities.
+- GPTQ: Mathematically rigorous, uses second-order information to minimize 
+  output distortion.
+
+METRICS (Qwen2-0.5B)
+--------------------
+- Group Size: 128
+- Bit-width: 4-bit (Symmetric)
+- Quantization Time: ~2-5 minutes for all layers.

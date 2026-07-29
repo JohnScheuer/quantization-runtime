@@ -3,7 +3,7 @@
 # quantization-runtime
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.5%2B-EE4C2C.svg)](https://pytorch.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C.svg)](https://pytorch.org/)
 [![Status](https://img.shields.io/badge/Status-Success-brightgreen.svg)](#performance--quality)
 
 **Direct implementation of AWQ and GPTQ Post-Training Quantization (PTQ) from scratch.**
@@ -16,33 +16,35 @@ Analyzing the mathematical stability and intelligence preservation of 4-bit weig
 
 ## What It Does
 
-This project implements the mathematical core of the two most prominent quantization algorithms: **AWQ** (Activation-Aware Weight Quantization) and **GPTQ** (Accurate PTQ). 
+This project implements the core mathematical logic of **AWQ** and **GPTQ**. By bypassing black-box libraries, it provides a deep-dive into how weight-clipping and error-propagation affect model perplexity.
 
-The focus is on validating how these algorithms handle the "intelligence compression" of models with limited parameter redundancy (Qwen2-0.5B).
+- **AWQ Success:** Achieved **26.05 PPL** on Qwen2-0.5B (4-bit), nearing the FP16 baseline of 20.17.
+- **GPTQ Analysis:** Documented the numerical instability of Hessian-based error compensation in low-parameter models.
 
 ---
 
 ## Performance & Quality (Qwen2-0.5B)
 
-**Configuration:** 128 calibration samples (WikiText-2), Group Size 128, 4-bit precision.
+**Configuration:** 128 calibration samples (WikiText-2), Group Size 128, 4-bit simulation.
 
-| Method | Precision | Perplexity (PPL) | Status |
+| Method | Precision | Perplexity (Lower is better) | Status |
 | :--- | :--- | :--- | :--- |
 | **FP16 (Baseline)** | 16-bit | **20.17** | Reference |
-| **AWQ** | 4-bit (Fake) | **28.66** | **Successful Compression** |
-| **GPTQ** | 4-bit (Fake) | 1.9M (Exploded) | Numerical Instability |
+| **AWQ** | 4-bit (Fake) | **26.05** | **Highly Successful** |
+| **GPTQ Hybrid** | 4-bit (Fake) | 1.2M+ | Numerical Limit reached |
 
-### Key Findings:
-- **AWQ Robustness:** Achieved a competitive PPL of **28.66** (< 30 goal). By scaling salient weights based on activation magnitudes, AWQ successfully preserved model coherence even at 4x algorithmic compression.
-- **GPTQ Sensitivity:** The Hessian-based error propagation proved unstable for the 0.5B architecture. The lack of parameter redundancy at this scale makes column-wise error compensation prone to numerical divergence.
+### Key Technical Findings:
+- **AWQ Robustness:** By scaling salient weights before quantization, AWQ successfully preserved model coherence with a minimal +5.88 PPL increase.
+- **GPTQ at Small Scale:** Small-scale LLMs lacks the parameter redundancy required for GPTQ's second-order error compensation, leading to numerical divergence despite advanced damping and isolation techniques.
 
 ---
 
-## Technical Insights
+## Features
 
-- **Numerical Stability:** Implemented 10% damping and error-clipping for GPTQ to mitigate Hessian inversion issues.
-- **Activation Tracking:** Used forward hooks to capture real-world data distribution for importance-based scaling.
-- **Fake Quantization:** Validated the logic by simulating INT4 rounding error within FP16 containers, allowing for precise Perplexity measurement without custom kernels.
+- **Hessian-based Calibration:** Accurately models weight correlations using normalized `X^T X` statistics.
+- **Activation Tracking:** Forward hooks to capture real-world magnitude distributions.
+- **Numerical Stability Suite:** Implemented FP64 inversion, 20% damping, and error-clipping for GPTQ robustness.
+- **Evaluation Pipeline:** Integrated Perplexity (PPL) measurement on WikiText-2.
 
 ---
 
@@ -52,18 +54,25 @@ The focus is on validating how these algorithms handle the "intelligence compres
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Run the Full Quality Benchmark
+# 2. Run the Full Quality Benchmark (AWQ vs GPTQ vs FP16)
 export PYTHONPATH=.
 python benchmarks/evaluate_quality.py
 ```
 
 ---
 
+## Project Structure
+
+- `src/quantization/awq.py`: Activation-aware pre-scaling and group-wise quantization.
+- `src/quantization/gptq.py`: Hessian-based error propagation with stability safeguards.
+- `src/evaluation/perplexity.py`: Cross-entropy loss based quality measurement.
+
+---
+
 ## Related Projects
 
-This runtime is part of an LLM Systems Portfolio:
 - [rag-inference-stack](https://github.com/JohnScheuer/rag-inference-stack): Knowledge-augmented generation.
-- [speculative-decoding-runtime](https://github.com/JohnScheuer/speculative-decoding-runtime): Generation acceleration.
+- [speculative-decoding-runtime](https://github.com/JohnScheuer/speculative-decoding-runtime): Inference acceleration.
 - [lora-inference-runtime](https://github.com/JohnScheuer/lora-inference-runtime): Multi-adapter serving.
 
 ---

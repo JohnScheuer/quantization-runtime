@@ -5,31 +5,25 @@ from tqdm import tqdm
 class ActivationCollector:
     def __init__(self, device="cuda"):
         self.device = device
-        self.stats = {} # Para AWQ (abs mean)
-        self.hessians = {} # Para GPTQ (XTX)
+        self.stats = {}
+        self.hessians = {}
         self.hooks = []
 
     def _get_hook(self, name):
         def hook_fn(module, input, output):
-            # x: (batch, seq_len, in_features)
             x = input[0].detach().float()
-            if x.ndim == 3:
-                x = x.reshape(-1, x.shape[-1])
+            if x.ndim == 3: x = x.reshape(-1, x.shape[-1])
             
-            # Estatística para AWQ
+            # AWQ Stats
             act_mean = x.abs().mean(dim=0)
-            if name not in self.stats:
-                self.stats[name] = act_mean
-            else:
-                self.stats[name] = 0.9 * self.stats[name] + 0.1 * act_mean
+            if name not in self.stats: self.stats[name] = act_mean
+            else: self.stats[name] = 0.9 * self.stats[name] + 0.1 * act_mean
 
-            # Acumulação para GPTQ (Hessiana: X^T * X)
-            # Simplificação: adicionamos uma pequena identidade para estabilidade numérica
-            xtx = x.t() @ x
-            if name not in self.hessians:
-                self.hessians[name] = xtx
-            else:
-                self.hessians[name] += xtx
+            # GPTQ Stats (Hessiana Normalizada)
+            # Normalizamos pelo número de tokens para manter a escala estável
+            xtx = (x.t() @ x) / x.shape[0] 
+            if name not in self.hessians: self.hessians[name] = xtx
+            else: self.hessians[name] = 0.9 * self.hessians[name] + 0.1 * xtx
         return hook_fn
 
     def register(self, model):
